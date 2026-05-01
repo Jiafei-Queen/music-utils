@@ -10,6 +10,9 @@
 - `yt-music.rb` & `yt-video.rb`
     - 对于 `yt-dlp` 的封装，用于从 Youtube 下载音频和视频
 
+- `yyfang.rb`
+    - 爬取 `yyfang.top` 网站的夸克网盘链接
+
 - `foa`
     - 封装 `ffmpeg` 的 FLAC -> ALAC 脚本
 
