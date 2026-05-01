@@ -1,0 +1,14 @@
+#!/usr/bin/env lua
+local args = {...}
+if #args == 0 then
+    print("Usage: square [path]")
+    return
+end
+
+local FN = "crop='min(iw,ih):min(iw,ih)'"
+
+for _,path in ipairs(args) do
+    local suffix = path:match("%.[^%.]+$")
+    local output = path:gsub(suffix, "_square"..suffix)
+    os.execute(('ffmpeg -i %q -vf %q %q'):format(path, FN, output))
+end

@@ -1,0 +1,137 @@
+#!/usr/bin/env lua
+local fs = require("fs")
+local utf8 = require("utf8")
+
+local LOG = "foa_log.log"
+local USAGE = "Usage: foa [paths] [--no-log] [-o|--output] [output_dir]"
+
+local args = {...}
+if #args == 0 then
+    print(USAGE)
+    return
+end
+
+--- [ 解析参数 ] ---
+local no_log
+local input = {}
+local output
+local skip
+for i,v in ipairs(args) do
+    if skip then
+        skip = false
+        goto continue
+    end
+
+    if v == "-o" or v == "--output" then
+        if output then
+            print(USAGE)
+        else
+            output = args[i+1]
+            skip = true
+        end
+    elseif v == "--no-log" then
+        no_log = true
+    elseif fs.test(v) == "file" then
+        if v:match("%.flac$") then
+            table.insert(input, v)
+        else
+            io.stderr:write(
+                ('foa: Unknown filetype: %s\n'):format(v)
+            )
+        end
+    else
+        io.stderr:write(('foa: No such file: %s\n'):format(v))
+    end
+
+    :: continue ::
+end
+
+--- [ 进度条函数 ] ---
+local function progress(total, current, path, act)
+    local total_str = tostring(total)
+    local counter = string.format("(%s/%s)", 
+        string.format("%" .. #total_str .. "d", current), 
+        total_str)
+
+    local max_path_width = 40
+    local display_path = path
+
+    local function get_display_width(s)
+        local width = 0
+        for _, code in utf8.codes(s) do
+            width = width + (code > 127 and 2 or 1)
+        end
+        return width
+    end
+
+    local display_width = get_display_width(path)
+
+    if display_width > max_path_width then
+        local suffix = ""
+        local current_w = 3
+        
+        local chars = {}
+        for _, code in utf8.codes(path) do
+            table.insert(chars, utf8.char(code))
+        end
+
+        for i = #chars, 1, -1 do
+            local char = chars[i]
+            local w = #char > 1 and 2 or 1
+            if current_w + w > max_path_width then
+                break
+            end
+            suffix = char .. suffix
+            current_w = current_w + w
+        end
+        display_path = "..." .. suffix
+    else
+        local padding = max_path_width - display_width
+        display_path = path .. string.rep(" ", math.max(padding, 0))
+    end
+
+    io.write(string.format("\r%s %s: %s\27[K", counter, act, display_path))
+    io.stdout:flush()
+end
+
+--- [ 转换逻辑 ] ---
+local log = ""
+local failures = {}
+for i,v in ipairs(input) do
+    local output_dir = output or "."
+    if output then
+        fs.mkdir(output)
+    end
+
+    local output_file = fs.join(output_dir, v):gsub("flac$", "m4a")
+    if fs.test(output_file) then
+        fs.remove(output_file)
+    end
+
+    progress(#input, i, v, "Convert")
+    local cl = io.popen(
+        ('ffmpeg -i %q -c:a alac %q 2>&1'):format(v, output_file)
+    ):read("*a")
+
+    if not no_log then
+        log = log..cl
+    end
+
+    if fs.test(output_file) ~= "file" then
+        table.insert(failures, v)
+    end
+end
+
+if #failures ~= 0 then
+    print("\nFaild: [")
+    print(table.concat(failures, "\n"))
+    print("]")
+end
+
+if not no_log then
+    local handle = io.open(LOG, "w")
+    handle:write(log)
+    handle:close()
+
+    print(("\nLog at `%s`"):format(LOG))
+end
