@@ -24,19 +24,23 @@ OptionParser.new do |opts|
   opts.on("-n", "--name song_name") do |n|
     options[:name] = n
   end
+
+  opts.on("-f", "--file json") do |n|
+    options[:file] = n
+  end
 end.parse!
 
 # 手动补全信息
-if !options[:artist] then
+if !options[:file] && !options[:artist] then
   options[:artist] = Reline.readline("> 歌手：")
 end
 
-if !options[:name] then
+if !options[:file] && !options[:name] then
   options[:name] = Reline.readline("> 歌名：")
 end
 
 # 获取 JSON 路径
-json_path = ARGV[0]
+json_path = options[:file]
 
 if json_path && File.file?(json_path)
   # 原有的 JSON 解析逻辑
@@ -64,7 +68,7 @@ songs.each do |item|
   name = item[:song].gsub("'", "").gsub('"', '')
   output_name = item[:song].gsub("/", "_")
   album = item[:album]
-  output_album = album.gsub("/", "_") if album
+  output_album = item[:album].gsub("/", "_") if item[:album]
 
   dir_path = album ? File.join(output_author, output_album) : "."
   FileUtils.mkdir_p(dir_path) unless Dir.exist?(dir_path)
