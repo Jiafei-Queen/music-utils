@@ -81,7 +81,7 @@ songs.each do |item|
 
   # 4. 动态确定搜索词或 URL
   # 如果 item 中有 :url，则直接使用；否则使用 ytsearch1 搜索
-  target = item[:url] ? item[:url] : "ytsearch1:#{name} - #{author}"
+  target = item[:url] ? item[:url] : "ytsearch1:##{author} #{name}"
 
   args = [
     "yt-dlp",
