@@ -1,0 +1,47 @@
+#!/usr/bin/env lua
+local fs = require("fs")
+
+local px
+local imgs = {}
+
+local function usage()
+    print("Usage: crop [img] -p [target_px]")
+    return
+end
+
+local skip = false
+local args = {...}
+for i,v in ipairs(args) do
+    if skip then
+        skip = false
+        goto continue
+    end
+
+    if v == "-p" then
+        px = tonumber(args[i+1])
+        skip = true
+    else
+        if fs.test(v) == "file" then
+            table.insert(imgs, v)
+        else
+            io.stderr:write(("crop: no such file: %s\n"):format(v))
+        end
+    end
+
+    :: continue ::
+end
+
+if not px or #imgs == 0 then
+    usage()
+end
+
+for _,v in ipairs(imgs) do
+    local suffix = v:match("%.[^%.]+$")
+    local output = v:gsub(suffix, "_cropped"..suffix)
+
+    os.execute(
+        ('ffmpeg -i %q -vf "scale=%d:-1" -q:v 2 -pix_fmt yuvj420p %q'):format(
+            v, px, output
+        )
+    )
+end
